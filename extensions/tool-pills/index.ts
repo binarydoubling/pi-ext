@@ -37,9 +37,14 @@ function renderTextResult(
 	theme: Theme,
 	mode: "head" | "tail" = "head",
 ): Text {
-	if (!text || !text.trim()) return new Text("", 0, 0);
+	// Tool result content can contain CRLF line endings. The built-in renderers
+	// strip carriage returns before drawing; this custom renderer was bypassing
+	// that, so `\r` returned the terminal cursor to column 0 and the padded
+	// background spaces erased normal file lines. Normalize before rendering.
+	const normalizedText = text?.replace(/\r/g, "");
+	if (!normalizedText || !normalizedText.trim()) return new Text("", 0, 0);
 
-	const lines = text.split("\n");
+	const lines = normalizedText.split("\n");
 
 	if (expanded || lines.length <= COLLAPSED_MAX_LINES) {
 		const output = lines.map((l) => theme.fg("toolOutput", l)).join("\n");
