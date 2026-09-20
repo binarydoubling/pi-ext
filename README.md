@@ -126,7 +126,7 @@ Native integration with [cmux](https://github.com/badlogic/cmux). Context-aware 
 
 ### [Ask User Question](extensions/ask-user-question/)
 
-Registers an `ask_user_question` tool the model uses to ask 1–4 structured clarifying questions (with 2–4 options each) instead of asking in plain text. Interactive UI with optional multi-select and short header labels for a tab bar.
+Registers `ask_user_question` with the original compact tabs and an explicit Review step. Supports 1–12 questions, multiline answers and notes, single/multi-select, optional and conditional fields, Markdown previews, validated dates/times, and opt-in model explanations. Returns structured answers; cancellation never submits drafts. Requires native Pi 0.86+ TUI. See the [input contract and keyboard controls](extensions/ask-user-question/README.md).
 
 ## Skills
 

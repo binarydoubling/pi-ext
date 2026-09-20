@@ -21,7 +21,8 @@
   "license": "MIT",
   "scripts": {
     "sem:evaluate": "node extensions/pi-sem/bin/sem-eval.mjs",
-    "test:pi-sem": "node --test extensions/pi-sem/core.test.mjs extensions/review/sem-guidance.test.mjs"
+    "test:pi-sem": "node --test extensions/pi-sem/core.test.mjs extensions/review/sem-guidance.test.mjs",
+    "test:ask-user-question": "node --experimental-strip-types --import ./extensions/ask-user-question/test-runtime.mjs --test extensions/ask-user-question/*.test.ts"
   },
   "pi": {
     "extensions": [
