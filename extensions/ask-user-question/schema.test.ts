@@ -74,3 +74,48 @@ test("optional is distinct from missing, cancellation never exposes a draft, str
   assert.deepEqual(cancelledResult("cancelled").answers, []);
   assert.ok(answerError(qs[0], { ...emptyState(), skipped: true }));
 });
+
+test("multi selection limits validate schema, defaults and complete answers; Other counts once", () => {
+  for (const patch of [
+    { minSelections: 0 }, { maxSelections: 1.5 }, { maxSelections: 14 },
+    { minSelections: 3, maxSelections: 2 }, { maxSelections: 4 },
+    { minSelections: 3, allowOther: false },
+    { minSelections: 2, default: ["a"] }, { maxSelections: 1, default: ["a", "b"] },
+  ]) assert.throws(() => parse({ ...choice, type: "multi", ...patch }));
+  assert.throws(() => parse({ ...choice, maxSelections: 1 }));
+  assert.throws(() => parse({ question: "Text", minSelections: 1 }));
+  const [q] = parse({ ...choice, type: "multi", minSelections: 2, maxSelections: 2 });
+  assert.match(answerError(q, { ...emptyState(), value: ["a"] })!, /at least 2/);
+  assert.equal(answerError(q, { ...emptyState(), value: ["a"], other: "custom" }), undefined);
+  assert.match(answerError(q, { ...emptyState(), value: ["a", "b"], other: "custom" })!, /at most 2/);
+  assert.equal(answerError({ ...q, required: false }, { ...emptyState(), skipped: true }), undefined);
+  assert.doesNotThrow(() => parse({ ...choice, type: "multi", minSelections: 2 }, { question: "Member follow-up", when: { questionId: "pick", equals: "a" } }));
+});
+
+test("Other conditions match any or exact custom text only after confirmation and reset descendants", () => {
+  for (const type of ["single", "multi"]) {
+    const qs = parse({ ...choice, type },
+      { id: "any", question: "Any custom", default: "draft", when: { questionId: "pick", other: true } },
+      { id: "exact", question: "Exact custom", default: "exact draft", when: { questionId: "pick", other: true, equals: "custom" } },
+      { id: "leaf", question: "Nested", default: "leaf", when: { questionId: "any", equals: "draft" } });
+    const form = new Questionnaire(qs);
+    const value = type === "single" ? null : ["a"];
+    form.change(qs[0], { value, other: "custom" });
+    assert.deepEqual(form.visible().map(q => q.id), ["pick"]);
+    form.confirm(qs[0]);
+    assert.deepEqual(form.visible().map(q => q.id), ["pick", "any", "exact"]);
+    form.confirm(qs[1]); form.confirm(qs[2]);
+    form.change(qs[3], { note: "private" }); form.confirm(qs[3]);
+    assert.equal(form.result()?.answers.length, 4);
+    form.change(qs[0], { other: "different" });
+    assert.deepEqual(form.states.get("leaf"), emptyState());
+    form.confirm(qs[0]);
+    assert.deepEqual(form.visible().map(q => q.id), ["pick", "any"]);
+    assert.equal(form.states.get("any")?.confirmed, false);
+    form.change(qs[0], { value: type === "single" ? "a" : ["a"], other: "" }); form.confirm(qs[0]);
+    assert.deepEqual(form.result()?.hiddenQuestionIds, ["any", "exact", "leaf"]);
+    assert.doesNotMatch(JSON.stringify(form.result()), /private/);
+  }
+  for (const when of [{ questionId: "pick" }, { questionId: "pick", other: false }, { questionId: "pick", other: true, equals: " " }]) assert.throws(() => parse(choice, { question: "Child", when }));
+  for (const parent of [{ ...choice, allowOther: false }, { id: "pick", question: "Text" }]) assert.throws(() => parse(parent, { question: "Child", when: { questionId: "pick", other: true } }));
+});

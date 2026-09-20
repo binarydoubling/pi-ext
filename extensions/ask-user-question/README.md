@@ -43,7 +43,8 @@ The original compact tabbed `ask_user_question`, with multiline answers, notes, 
 - `type`: `single`, `multi`, `text`, `date`, `datetime`, or `time`. Omitted type is inferred from legacy `multiSelect`/`options`, otherwise `text`. Legacy `{question, header, options, multiSelect}` calls still work.
 - Choice `default` uses an option ID (or label when no ID); `multi` uses an array. Text/date/time defaults are strings. Defaults remain drafts until explicitly confirmed.
 - `required` defaults to `true`. Optional questions require explicit skip or confirmation. Choice fields permit custom answers unless `allowOther:false`; multi custom answers are additive.
-- `when: {questionId, equals}` references an **earlier** question. It matches a confirmed scalar or membership in a confirmed multi choice. Changing a parent resets all dependent answers and notes, even if the condition still matches. Newly visible fields start from their defaults as unconfirmed drafts.
+- `minSelections` / `maxSelections`: optional positive integers for **multi** fields, within the number of options plus Other when allowed (at most 13). Other counts as one selection. The default minimum is one; use explicit skip for optional empty answers. Minimum is enforced on confirmation, maximum also blocks additional toggles/custom text. Defaults must satisfy both limits; partial multi drafts remain editable.
+- `when: {questionId, equals}` references an **earlier** question. It matches a confirmed scalar or membership in a confirmed multi choice. `when: {questionId, other:true}` matches any confirmed nonempty custom answer; add `equals: "custom text"` to match that exact custom text instead. Other conditions require a choice parent with `allowOther:true`. Changing a parent resets all dependent answers and notes, even if the condition still matches. Newly visible fields start from their defaults as unconfirmed drafts.
 - Dates: `YYYY-MM-DD`; datetimes: `YYYY-MM-DD HH:mm`; times: `HH:mm` (24-hour). Years 0001–9999, Gregorian leap years, real month lengths. These are **local civil values**, not timezone-converted timestamps. There is no graphical calendar picker.
 - Question text: 1,000 characters; question description/option preview: 4,000; option description: 2,000; label: 200. Answers/custom text/notes: 10,000 each. Question descriptions and option descriptions/previews support Markdown. All option descriptions stay visible; previews appear beneath the highlighted option.
 
@@ -53,7 +54,12 @@ The original compact tabbed `ask_user_question`, with multiline answers, notes, 
 | --- | --- |
 | ← / → | Change visible question or Submit tab; never auto-confirm |
 | Tab on “Type your own answer...” | Open the original inline editor |
-| ↑ / ↓ | Highlight option |
+| ↑ / ↓ | Highlight a visible option |
+| `1`–`9` | Select a single choice or toggle a multi choice by its original number; Other opens the editor |
+| `/` | Open inline search/filter by label and description (case-insensitive) |
+| Enter / Esc in filter editor | Apply filter / discard filter edit |
+| Esc with an applied filter | Clear filter without cancelling the form |
+| F1 | Open/close keyboard help; Esc returns without losing an editor draft |
 | Space | Toggle multi choice, or edit Other |
 | Enter | Select/confirm answer and advance; **submit only on the Submit review screen** |
 | `e` | Edit answer/custom text |
@@ -68,7 +74,9 @@ The original compact tabbed `ask_user_question`, with multiline answers, notes, 
 
 Return to any question tab to edit before final submission. Clearing Other removes the custom answer and leaves a draft if nothing else is selected.
 
-The separators, tab styling, numbered choices, descriptions, custom-answer preview, inline editor, and compact contextual footer preserve `779d11d6`'s UI. New editing shortcuts remain available without expanding that footer. A single-question form still has no tab strip, but now advances to the same review screen instead of immediately submitting; ← returns to edit. Defaults and tab navigation never count as confirmation.
+Filtering preserves original option numbers and all selections, including hidden ones. Hidden numbers do nothing; Other stays available even if no listed option matches. Arrow navigation visits only visible options. Filters are limited to 200 characters and reset on tab changes. Options 10–12 (and Other at 13) remain accessible with arrows. Digits in an editor are ordinary text. Help and filtering make no model requests; `?` retains its opt-in explanation behavior.
+
+The separators, tab styling, numbered choices, descriptions, custom-answer preview, inline editor, and compact contextual footer preserve `779d11d6`'s UI. New editing shortcuts remain available without expanding that footer; **F1** shows them on demand. Filter UI appears only after `/`; selection-limit hints appear only when the caller specifies limits. A single-question form still has no tab strip, but now advances to the same review screen instead of immediately submitting; ← returns to edit. Defaults and tab navigation never count as confirmation.
 
 Explanations are **opt-in model requests and may consume quota**. Only the current question, its description, and highlighted option are sent—not conversation history, answers, notes, tools, or credentials in the prompt. Output is limited to 768 tokens; requests time out after 30 seconds and are aborted on navigation/edit/close. Errors are generic and raw reasoning is never shown. Tool usage includes provider-reported usage available before close, including up to a 500ms grace period for cancelled requests; unresponsive providers may not report aborted-request usage. Explanations never change answers.
 
@@ -98,6 +106,6 @@ npm run test:ask-user-question
 pi --no-extensions -e ./extensions/ask-user-question/index.ts --list-models
 ```
 
-Tests use Node's built-in runner and the installed Pi SDK, without installing a second Pi or making model calls. For a non-global installation, set `PI_TEST_CORE_DIR` to the installed `@earendil-works/pi-coding-agent` package directory. Tests cover validation, legacy calls, dates, conditions, notes/pastes, review gating, cancellation, narrow terminals, explanation isolation/errors/timeout/usage, and lifecycle races. `original-ui.snap.json` captures 11 states directly from `779d11d6` (only SDK import namespaces changed): tests compare complete visible lines and exact ANSI styling for original chrome/selection rows, including inline editing and Submit.
+Tests use Node's built-in runner and the installed Pi SDK, without installing a second Pi or making model calls. For a non-global installation, set `PI_TEST_CORE_DIR` to the installed `@earendil-works/pi-coding-agent` package directory. Tests cover validation, legacy calls, dates, value/Other conditions, selection limits, number shortcuts, filtering, help/draft preservation, notes/pastes, review gating, cancellation, narrow terminals, explanation isolation/errors/timeout/usage, and lifecycle races. `original-ui.snap.json` captures 11 states directly from `779d11d6` (only SDK import namespaces changed): tests compare complete visible lines and exact ANSI styling for original chrome/selection rows, including inline editing and Submit.
 
 Original MIT attribution is retained in [LICENSE](LICENSE).

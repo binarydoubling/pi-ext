@@ -310,3 +310,95 @@ test("short terminals keep validation visible and option labels stay on one row"
   assert.ok(c.ui.render(80).every(line => !/[\n\r\t]/.test(line)));
   c.ui.dispose();
 });
+
+test("number shortcuts select/toggle original numbered choices without bypassing review", () => {
+  const s = setup();
+  s.press("0", "9"); assert.match(s.view(), /Choose/);
+  s.press("2"); assert.match(s.view(), /Ready to submit/); assert.equal(s.results.length, 0);
+  s.press(k.enter); assert.equal(s.results[0].answers[0].value, "b");
+  const m = setup([{ ...choice, type: "multi" }]);
+  m.press("1", "2", "1"); assert.match(m.view(), /\[✓\] 2\. Beta/);
+  m.press(k.enter, k.enter); assert.deepEqual(m.results[0].answers[0].value, ["b"]);
+  const other = setup(); other.press("3"); assert.match(other.view(), /Your answer:/);
+  other.press("1", "2", "3", k.enter, k.enter);
+  assert.equal(other.results[0].answers[0].other, "123", "editor digits stay text");
+});
+
+test("filter searches labels/descriptions, retains numbering and hidden selections, and clears with Esc", () => {
+  const h = setup([{ ...choice, type: "multi", options: [choice.options[0], { ...choice.options[1], description: "Slower delivery" }] }]);
+  h.press("1", "/"); h.paste("SLOWER");
+  assert.doesNotMatch(h.view(), /1\. Alpha/); assert.match(h.view(), /2\. Beta/);
+  assert.match(h.view(), /Filter options:/);
+  h.press(k.enter, "1"); // Hidden original number must not act on a different visible option.
+  assert.match(h.view(), /Filter: SLOWER/);
+  h.press("2", k.esc);
+  assert.match(h.view(), /\[✓\] 1\. Alpha/); assert.match(h.view(), /\[✓\] 2\. Beta/);
+  assert.equal(h.results.length, 0, "first Escape clears the filter, not the form");
+  h.press(k.enter, k.enter);
+  assert.deepEqual(h.results[0].answers[0].value, ["a", "b"]);
+});
+
+test("filter edits discard safely, handle no matches, stay bounded, and reset on tab navigation", () => {
+  const h = setup([{ ...choice, allowOther: false }, { question: "Second", type: "text" }]);
+  h.press("/"); h.paste("zzz"); h.press(k.enter);
+  assert.match(h.view(), /No matching options/);
+  h.press("1", " ", k.enter); assert.equal(h.results.length, 0); assert.match(h.view(), /No matching options/);
+  h.press("/"); h.paste("discard me"); h.press(k.esc); assert.match(h.view(), /Filter: zzz/);
+  h.press(k.esc, "/"); h.paste("beta"); h.press(k.enter);
+  assert.match(h.view(), /2\. Beta/); assert.doesNotMatch(h.view(), /1\. Alpha/);
+  h.press(k.right, k.left); assert.match(h.view(), /1\. Alpha/); assert.doesNotMatch(h.view(), /Filter:/);
+  h.press("/"); h.paste("x".repeat(201)); h.press(k.enter); assert.match(h.view(), /at most 200/);
+  h.press(k.esc, "/"); h.paste("bad\x9dtext"); h.press(k.enter); assert.match(h.view(), /control codes/);
+  h.press(k.cancel); assert.deepEqual(h.results[0].answers, []);
+  const other = setup(); other.press("/"); other.paste("no-match"); other.press(k.enter, "3");
+  assert.match(other.view(), /Your answer:/, "Other remains available when no listed option matches");
+  other.ui.dispose();
+});
+
+test("limits apply to keyboard, filtered choices and Other; minimum waits for confirmation", () => {
+  const h = setup([{ ...choice, type: "multi", minSelections: 2, maxSelections: 2 }]);
+  h.press("3"); h.paste("custom"); h.press(k.enter);
+  assert.match(h.view(), /"custom"/, "partial multi draft may save Other before reaching minimum");
+  h.press(k.enter); assert.match(h.view(), /at least 2/);
+  h.press("1", "2"); assert.match(h.view(), /at most 2/); assert.doesNotMatch(h.view(), /\[✓\] 2\. Beta/);
+  h.press(k.enter, k.enter); assert.deepEqual(h.results[0].answers[0].value, ["a"]); assert.equal(h.results[0].answers[0].other, "custom");
+  const m = setup([{ ...choice, type: "multi", maxSelections: 1 }]);
+  m.press("1", "/"); m.paste("Beta"); m.press(k.enter, "2"); assert.match(m.view(), /at most 1/);
+  m.press(k.esc, "3"); m.paste("too many"); m.press(k.enter); assert.match(m.view(), /at most 1/);
+  m.press(k.esc, "1", "2", k.enter, k.enter); assert.deepEqual(m.results[0].answers[0].value, ["b"]);
+});
+
+test("custom answer shortcuts reveal Other follow-ups; editing resets confirmed descendants", () => {
+  const h = setup([choice, { id: "why", question: "Explain custom", default: "because", when: { questionId: "pick", other: true } }]);
+  h.press("3"); h.paste("custom"); h.press(k.enter); assert.match(h.view(), /Explain custom/);
+  h.press("n"); h.paste("old note"); h.press(k.enter, k.enter, k.right, "e");
+  h.paste(" revised"); h.press(k.enter); assert.match(h.view(), /Explain custom/); assert.doesNotMatch(h.view(), /old note/);
+  h.press(k.right, k.enter); assert.equal(h.results.length, 0, "revealed default must be confirmed again");
+  h.press(k.left, k.enter, k.enter);
+  assert.equal(h.results[0].answers[0].other, "custom revised"); assert.equal(h.results[0].answers[1].note, undefined);
+});
+
+test("F1 help is opt-in, scrollable, preserves editor drafts/focus, and never answers", () => {
+  const h = setup(); const original = h.view();
+  h.press("\x1bOP"); assert.match(h.view(), /Keyboard shortcuts/); assert.match(h.view(), /n edit note/);
+  h.press("1", k.enter); assert.equal(h.results.length, 0);
+  h.press(k.esc); assert.equal(h.view(), original);
+  h.press("e"); h.paste("private draft"); h.press("\x1bOP");
+  assert.doesNotMatch(h.view(), /private draft/); assert.ok(h.ui.render(80).every(line => !line.includes(CURSOR_MARKER)));
+  h.press(k.esc); assert.match(h.view(), /private draft/); assert.ok(h.ui.render(80).some(line => line.includes(CURSOR_MARKER)));
+  h.press("\x1bOP"); h.tui.terminal!.rows = 8;
+  for (let i = 0; i < 20; i++) { h.press(k.pageDown); h.view(); }
+  assert.match(h.view(), /Ctrl\+C cancels anywhere/);
+  for (const width of [1, 2, 10, 80]) assert.ok(h.ui.render(width).every(line => visibleWidth(line) <= width));
+  h.press(k.cancel); assert.deepEqual(h.results[0].answers, []);
+});
+
+test("opening help or filtering aborts option explanations without accepting late output", async () => {
+  for (const key of ["\x1bOP", "/"]) {
+    let signal!: AbortSignal; let resolve!: (s: string) => void;
+    const h = setup([choice], (_q, _o, s) => { signal = s; return new Promise(r => { resolve = r; }); });
+    h.press("?"); await flush(); h.press(key); assert.ok(signal.aborted);
+    resolve("stale explanation"); await flush(); assert.doesNotMatch(h.view(), /stale explanation/);
+    h.ui.dispose();
+  }
+});

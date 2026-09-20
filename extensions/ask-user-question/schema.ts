@@ -19,11 +19,14 @@ export const QuestionSchema = Type.Object({
   multiSelect: Type.Optional(Type.Boolean({ description: "Legacy alias for type: multi" })),
   required: Type.Optional(Type.Boolean({ description: "Default true; optional fields can be explicitly skipped" })),
   allowOther: Type.Optional(Type.Boolean({ description: "Choice fields only; default true" })),
+  minSelections: Type.Optional(Type.Integer({ minimum: 1, maximum: 13, description: "Multi only; minimum choices including Other (default 1)" })),
+  maxSelections: Type.Optional(Type.Integer({ minimum: 1, maximum: 13, description: "Multi only; maximum choices including Other" })),
   default: Type.Optional(Type.Union([text(10000), Type.Array(text(200), { minItems: 1, maxItems: 12, uniqueItems: true })])),
   when: Type.Optional(Type.Object({
     questionId: id,
-    equals: text(10000),
-  }, { additionalProperties: false, description: "Show only when an EARLIER confirmed answer equals this value (or includes it for multi). Use option IDs when supplied." })),
+    equals: Type.Optional(text(10000)),
+    other: Type.Optional(Type.Literal(true)),
+  }, { additionalProperties: false, description: "Reference an EARLIER confirmed question. equals matches its value/option ID (membership for multi). other:true instead matches a custom answer; omit equals for any custom text, or supply exact custom text." })),
 }, { additionalProperties: false });
 export const InputSchema = Type.Object({
   questions: Type.Array(QuestionSchema, { minItems: 1, maxItems: 12 }),
@@ -78,6 +81,9 @@ export function answerError(q: Question, state: Pick<QuestionState, "value" | "o
   if (q.type === "multi") {
     if (!Array.isArray(value) || new Set(value).size !== value.length || value.some(v => !q.options.some(o => o.id === v))) return "Select valid choices.";
     if (!value.length && !other.trim()) return "Select a choice or enter a custom answer.";
+    const count = value.length + Number(Boolean(other.trim()));
+    if (count < (q.minSelections ?? 1)) return `Select at least ${q.minSelections} choices (Other counts as one).`;
+    if (q.maxSelections !== undefined && count > q.maxSelections) return `Select at most ${q.maxSelections} choices (Other counts as one).`;
   } else if (q.type === "single") {
     if (other.trim() && value === null) return undefined;
     if (other || typeof value !== "string" || !q.options.some(o => o.id === value)) return "Select a choice or enter a custom answer.";
@@ -103,6 +109,11 @@ export function normalizeInput(input: unknown): Question[] {
     if (isChoice(q) !== Boolean(q.options.length)) fail("choice fields need options; other fields must not have options.");
     if (!isChoice(q) && raw.allowOther !== undefined) fail("allowOther only applies to choice fields.");
     if (q.options.some(o => !o.label.trim()) || new Set(q.options.map(o => o.id)).size !== q.options.length || new Set(q.options.map(o => o.label)).size !== q.options.length) fail("option labels and IDs must be nonempty and unique.");
+    if (q.minSelections !== undefined || q.maxSelections !== undefined) {
+      if (q.type !== "multi") fail("selection limits only apply to multi fields.");
+      const capacity = q.options.length + Number(q.allowOther);
+      if ((q.minSelections ?? 1) > (q.maxSelections ?? capacity) || (q.maxSelections ?? q.minSelections!) > capacity) fail("selection limits must be ordered and within available choices, including Other.");
+    }
     if (raw.default !== undefined) {
       const error = answerError(q, { ...emptyState(), value: raw.default });
       if (error) fail(`invalid default: ${error}`);
@@ -110,8 +121,16 @@ export function normalizeInput(input: unknown): Question[] {
     if (q.when) {
       const parent = questions.find(p => p.id === q.when!.questionId);
       if (!parent) fail("conditions must reference an earlier question ID.");
-      const error = answerError(parent!, { ...emptyState(), value: parent!.type === "multi" ? [q.when.equals] : q.when.equals });
-      if (error) fail("condition must match a valid value of its earlier question.");
+      if (q.when.other) {
+        if (!isChoice(parent!) || !parent!.allowOther) fail("Other conditions require an earlier choice field allowing custom answers.");
+        if (q.when.equals !== undefined && !q.when.equals.trim()) fail("Other text conditions must be nonempty.");
+      } else {
+        if (q.when.equals === undefined) fail("conditions require equals or other:true.");
+        // Membership predicates are not complete multi answers: minimum counts do not apply.
+        const invalid = isChoice(parent!) ? !parent!.options.some(o => o.id === q.when!.equals)
+          : answerError(parent!, { ...emptyState(), value: q.when.equals! });
+        if (invalid) fail("condition must match a valid value of its earlier question.");
+      }
     }
     questions.push(q);
   }
@@ -138,7 +157,8 @@ export class Questionnaire {
       if (!q.when) { visible.add(q.id); return true; }
       const parent = this.states.get(q.when.questionId)!;
       const show = visible.has(q.when.questionId) && parent.confirmed && !parent.skipped &&
-        (Array.isArray(parent.value) ? parent.value.includes(q.when.equals) : parent.value === q.when.equals);
+        (q.when.other ? Boolean(parent.other.trim()) && (q.when.equals === undefined || parent.other === q.when.equals)
+          : Array.isArray(parent.value) ? parent.value.includes(q.when.equals!) : parent.value === q.when.equals);
       if (show) visible.add(q.id);
       return show;
     });

@@ -126,7 +126,7 @@ Native integration with [cmux](https://github.com/badlogic/cmux). Context-aware 
 
 ### [Ask User Question](extensions/ask-user-question/)
 
-Registers `ask_user_question` with the original compact tabs and an explicit Review step. Supports 1–12 questions, multiline answers and notes, single/multi-select, optional and conditional fields, Markdown previews, validated dates/times, and opt-in model explanations. Returns structured answers; cancellation never submits drafts. Requires native Pi 0.84.2+ TUI. See the [input contract and keyboard controls](extensions/ask-user-question/README.md).
+Registers `ask_user_question` with the original compact tabs and an explicit Review step. Supports 1–12 questions, multiline answers and notes, single/multi-select with selection limits, optional and conditional fields (including Other follow-ups), number shortcuts, inline filtering, on-demand key help, Markdown previews, validated dates/times, and opt-in model explanations. Returns structured answers; cancellation never submits drafts. Requires native Pi 0.84.2+ TUI. See the [input contract and keyboard controls](extensions/ask-user-question/README.md).
 
 ## Skills
 

@@ -14,7 +14,7 @@ export interface TUILike {
   terminal?: { rows: number; columns: number };
 }
 type Explain = (question: Question, option: Option, signal: AbortSignal) => Promise<string>;
-type EditField = "value" | "other" | "note";
+type EditField = "value" | "other" | "note" | "filter";
 
 /** Native compact questionnaire: navigation never confirms, and only Review submits. */
 export class AskUserQuestionComponent implements Component, Focusable {
@@ -32,6 +32,9 @@ export class AskUserQuestionComponent implements Component, Focusable {
   private followSelection = false;
   private pageSize = 8;
   private error = "";
+  private filter = "";
+  private helpOpen = false;
+  private helpScroll = 0;
   private assistance?: { controller: AbortController; timer: ReturnType<typeof setTimeout> };
   private explanation = "";
 
@@ -60,14 +63,18 @@ export class AskUserQuestionComponent implements Component, Focusable {
       },
     });
     editor.disableSubmit = true;
-    editor.onChange = () => { this.error = ""; this.tui.requestRender(); };
+    editor.onChange = () => {
+      this.error = "";
+      if (this.editing === "filter") { this.alignCursor(); this.scroll = 0; }
+      this.tui.requestRender();
+    };
     return editor;
   }
 
   get focused(): boolean { return this.hasFocus; }
   set focused(value: boolean) {
     this.hasFocus = value;
-    this.editor.focused = value && Boolean(this.editing);
+    this.editor.focused = value && Boolean(this.editing) && !this.helpOpen;
   }
   invalidate(): void { this.editor.invalidate(); }
   abort(): void { this.finish(cancelledResult("aborted")); }
@@ -86,6 +93,23 @@ export class AskUserQuestionComponent implements Component, Focusable {
   private question(): Question | undefined {
     return this.model.visible().find(q => q.id === this.active);
   }
+  private filterText(): string {
+    return safeDisplay(this.editing === "filter" ? this.editor.getExpandedText() : this.filter).slice(0, 200).replace(/\s+/g, " ").trim();
+  }
+  private optionIndices(q: Question): number[] {
+    const query = this.filterText().toLocaleLowerCase();
+    const indices = q.options.flatMap((option, index) => `${option.label} ${option.description ?? ""}`.toLocaleLowerCase().includes(query) ? [index] : []);
+    if (q.allowOther) indices.push(q.options.length);
+    return indices;
+  }
+  private alignCursor(): void {
+    const q = this.question();
+    if (!q || !isChoice(q)) return;
+    const indices = this.optionIndices(q);
+    const state = this.model.states.get(q.id)!;
+    if (!indices.includes(state.cursorIndex)) state.cursorIndex = indices[0] ?? -1;
+    this.followSelection = true;
+  }
   private stopAssistance(): void {
     const job = this.assistance;
     this.assistance = undefined; // Invalidate before abort listeners can run.
@@ -95,6 +119,8 @@ export class AskUserQuestionComponent implements Component, Focusable {
   private switchTab(id: string | null): void {
     this.stopAssistance();
     this.active = id;
+    this.filter = "";
+    this.alignCursor();
     this.scroll = 0;
     this.followSelection = false;
     this.error = "";
@@ -111,7 +137,7 @@ export class AskUserQuestionComponent implements Component, Focusable {
     this.error = "";
     const state = this.model.states.get(q.id)!;
     if (field === "other") state.cursorIndex = q.options.length;
-    const value = state[field];
+    const value = field === "filter" ? this.filter : state[field];
     this.editor.setText(safeDisplay(typeof value === "string" ? value : ""));
     this.editor.focused = this.focused;
   }
@@ -120,10 +146,17 @@ export class AskUserQuestionComponent implements Component, Focusable {
     this.editor.focused = false;
     this.editor = this.createEditor();
     this.error = "";
+    this.alignCursor();
   }
   private saveEditor(q: Question): void {
     const field = this.editing!;
     const input = this.editor.getExpandedText();
+    if (field === "filter") {
+      if (input.length > 200 || safeDisplay(input) !== input) { this.error = "Filter must be at most 200 characters, without control codes."; return; }
+      this.filter = this.filterText();
+      this.closeEditor();
+      return;
+    }
     const text = field === "other" && !input.trim() ? "" : input;
     const state = this.model.states.get(q.id)!;
     const patch = field === "note" ? { note: text } : {
@@ -136,7 +169,8 @@ export class AskUserQuestionComponent implements Component, Focusable {
     // Notes can be saved before answering; answer validation still happens on confirm.
     this.error = field === "note" || clearingOther
       ? (text.length > 10000 || safeDisplay(text) !== text ? "Notes must be at most 10,000 characters, without control codes." : "")
-      : answerError(q, { ...state, ...patch }) ?? "";
+      // Multi custom text is still a draft: enforce its maximum now, minimum on confirmation.
+      : answerError(q.type === "multi" ? { ...q, minSelections: 1 } : q, { ...state, ...patch }) ?? "";
     if (this.error) return;
     this.model.change(q, patch);
     this.closeEditor();
@@ -181,6 +215,18 @@ export class AskUserQuestionComponent implements Component, Focusable {
   private input(data: string): void {
     if (matchesKey(data, Key.ctrl("c"))) { this.finish(cancelledResult("cancelled")); return; }
     const q = this.question();
+    if (matchesKey(data, Key.f1)) {
+      this.helpOpen = !this.helpOpen;
+      this.helpScroll = 0;
+      if (this.helpOpen) this.stopAssistance();
+      this.focused = this.hasFocus;
+      return;
+    }
+    if (this.helpOpen) {
+      if (matchesKey(data, Key.escape)) { this.helpOpen = false; this.focused = this.hasFocus; }
+      else if (matchesKey(data, Key.pageUp) || matchesKey(data, Key.pageDown)) this.helpScroll = Math.max(0, this.helpScroll + (matchesKey(data, Key.pageUp) ? -1 : 1) * this.pageSize);
+      return;
+    }
     if (this.editing && q) {
       if (matchesKey(data, Key.escape)) this.closeEditor();
       else if (matchesKey(data, Key.shift(Key.enter))) this.editor.insertTextAtCursor("\n");
@@ -188,7 +234,11 @@ export class AskUserQuestionComponent implements Component, Focusable {
       else this.editor.handleInput(data);
       return;
     }
-    if (matchesKey(data, Key.escape)) { this.finish(cancelledResult("cancelled")); return; }
+    if (matchesKey(data, Key.escape)) {
+      if (this.filter) { this.filter = ""; this.alignCursor(); this.scroll = 0; }
+      else this.finish(cancelledResult("cancelled"));
+      return;
+    }
     const tabs = [...this.model.visible().map(q => q.id), null];
     if (q && isChoice(q) && q.allowOther && this.model.states.get(q.id)!.cursorIndex === q.options.length && matchesKey(data, Key.tab)) {
       this.openEditor(q, "other");
@@ -213,6 +263,16 @@ export class AskUserQuestionComponent implements Component, Focusable {
       return;
     }
     const state = this.model.states.get(q.id)!;
+    if (isChoice(q) && matchesKey(data, "/")) { this.openEditor(q, "filter"); return; }
+    const digit = isChoice(q) ? (["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const).find(n => matchesKey(data, n)) : undefined;
+    if (digit !== undefined) {
+      const index = Number(digit) - 1;
+      if (!this.optionIndices(q).includes(index)) return;
+      state.cursorIndex = index;
+      this.followSelection = true;
+      if (index === q.options.length) { this.openEditor(q, "other"); return; }
+      data = q.type === "multi" ? " " : "\r"; // Use the same validated path as Space/Enter.
+    }
     if (matchesKey(data, "n")) { this.openEditor(q, "note"); return; }
     if (matchesKey(data, "s")) {
       this.stopAssistance();
@@ -229,17 +289,24 @@ export class AskUserQuestionComponent implements Component, Focusable {
     if (isChoice(q) && (matchesKey(data, Key.up) || matchesKey(data, Key.down))) {
       this.stopAssistance();
       this.error = "";
-      state.cursorIndex = Math.max(0, Math.min(q.options.length - (q.allowOther ? 0 : 1), state.cursorIndex + (matchesKey(data, Key.up) ? -1 : 1)));
+      const indices = this.optionIndices(q);
+      const position = Math.max(0, indices.indexOf(state.cursorIndex));
+      state.cursorIndex = indices[Math.max(0, Math.min(indices.length - 1, position + (matchesKey(data, Key.up) ? -1 : 1)))] ?? -1;
       this.followSelection = true;
       return;
     }
     const onOther = isChoice(q) && state.cursorIndex === q.options.length;
+    if (isChoice(q) && state.cursorIndex < 0) return;
     if (matchesKey(data, Key.space) && isChoice(q)) {
       this.stopAssistance();
       if (onOther) this.openEditor(q, "other");
       else if (q.type === "multi") {
         const values = Array.isArray(state.value) ? state.value : [];
         const id = q.options[state.cursorIndex].id;
+        if (!values.includes(id) && q.maxSelections !== undefined && values.length + Number(Boolean(state.other)) >= q.maxSelections) {
+          this.error = `Select at most ${q.maxSelections} choices (Other counts as one).`;
+          return;
+        }
         this.model.change(q, { value: values.includes(id) ? values.filter(v => v !== id) : [...values, id], skipped: false });
         this.error = "";
       }
@@ -279,6 +346,8 @@ export class AskUserQuestionComponent implements Component, Focusable {
     return ` ${tabs[index].styled} ${index + 1}/${tabs.length}`;
   }
   private footer(q?: Question): string {
+    if (this.helpOpen) return " F1/Esc back · PgUp/PgDn scroll · Ctrl+C cancel";
+    if (this.editing === "filter") return " Enter apply filter · Esc back";
     if (this.editing) return " Enter submit · Esc back";
     if (!q) return " ←→ switch tabs · Esc cancel";
     const tabHint = this.model.visible().length === 1 ? "" : " · ←→ switch tabs";
@@ -301,15 +370,35 @@ export class AskUserQuestionComponent implements Component, Focusable {
       body.push(...lines.map(line => " ".repeat(indent) + line));
     };
     let selectedLine = 0;
-    if (q) {
+    if (this.helpOpen) {
+      body.push(t.fg("text", t.bold(" Keyboard shortcuts")), "");
+      for (const line of [
+        "←→ switch questions / Submit · ↑↓ highlight options",
+        "1–9 select a single choice or toggle a multi choice (original option numbers)",
+        "Space toggle multi · Space/Tab on Other opens the inline editor",
+        "Enter confirms an answer; only Enter on Submit sends the form",
+        "/ filter choices by label/description · Enter apply · Esc discard edit",
+        "Esc clears an applied filter first; hidden selections are kept",
+        "e edit answer/custom text · n edit note · s skip optional question",
+        "? explain highlighted option (opt-in model request; uses quota)",
+        "Editor: Enter/Ctrl+S save · Shift+Enter newline · Esc discard edit",
+        "PgUp/PgDn scroll long content · F1 opens/closes this help",
+        "Esc cancels outside editor/filter/help · Ctrl+C cancels anywhere",
+      ]) wrap(t.fg("muted", ` ${line}`));
+    } else if (q) {
       const state = this.model.states.get(q.id)!;
       wrap(t.fg("text", ` ${safeDisplay(q.question)}`), 2);
       if (q.description) markdown(q.description, 1);
+      if (q.minSelections !== undefined || q.maxSelections !== undefined) wrap(t.fg("dim", ` Select ${q.minSelections !== undefined ? `at least ${q.minSelections}` : "at least 1"}${q.maxSelections !== undefined ? `, at most ${q.maxSelections}` : ""} choices; Other counts as one.`));
+      if (this.filter && this.editing !== "filter") wrap(t.fg("muted", ` Filter: ${this.filter} · Esc clear`));
       body.push("");
       if (isChoice(q)) {
         const opts = [...q.options, ...(q.allowOther ? [{ id: "", label: "Type your own answer..." }] : [])];
         const indent = q.type === "multi" ? 7 : 5;
+        const indices = this.optionIndices(q);
+        if (!indices.some(index => index < q.options.length)) body.push(t.fg("muted", " No matching options."));
         opts.forEach((opt, index) => {
+          if (!indices.includes(index)) return;
           const selected = index === state.cursorIndex;
           const other = index === q.options.length;
           const editingOther = other && this.editing === "other";
@@ -335,7 +424,7 @@ export class AskUserQuestionComponent implements Component, Focusable {
       }
       if (state.note && this.editing !== "note") wrap(t.fg("muted", ` Note: ${safeDisplay(state.note)}`));
       if (this.editing) {
-        body.push("", t.fg("muted", this.editing === "note" ? " Your note:" : " Your answer:"));
+        body.push("", t.fg("muted", this.editing === "filter" ? " Filter options:" : this.editing === "note" ? " Your note:" : " Your answer:"));
         if (this.editing === "value" && q.type !== "text") {
           body.push(t.fg("dim", ` ${q.type === "date" ? "YYYY-MM-DD" : q.type === "time" ? "HH:mm (24-hour)" : "YYYY-MM-DD HH:mm (24-hour)"}`));
         }
@@ -369,13 +458,16 @@ export class AskUserQuestionComponent implements Component, Focusable {
     }
     const budget = Math.max(1, rows - head.length - tail.length);
     this.pageSize = Math.max(1, budget - 1);
-    if (this.editing || this.followSelection) {
-      if (selectedLine < this.scroll) this.scroll = selectedLine;
-      else if (selectedLine >= this.scroll + budget) this.scroll = selectedLine - budget + 1;
+    let scroll = this.helpOpen ? this.helpScroll : this.scroll;
+    if (!this.helpOpen && (this.editing || this.followSelection)) {
+      if (selectedLine < scroll) scroll = selectedLine;
+      else if (selectedLine >= scroll + budget) scroll = selectedLine - budget + 1;
       this.followSelection = false;
     }
-    this.scroll = Math.max(0, Math.min(this.scroll, body.length - budget));
-    const lines = [...head, ...body.slice(this.scroll, this.scroll + budget), ...tail];
+    scroll = Math.max(0, Math.min(scroll, body.length - budget));
+    if (this.helpOpen) this.helpScroll = scroll;
+    else this.scroll = scroll;
+    const lines = [...head, ...body.slice(scroll, scroll + budget), ...tail];
     return lines.slice(0, rows).map(line => {
       const cursor = line.indexOf(CURSOR_MARKER);
       if (cursor >= 0) {

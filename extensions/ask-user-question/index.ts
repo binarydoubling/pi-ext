@@ -22,11 +22,12 @@ export default function (pi: ExtensionAPI) {
     name: "ask_user_question",
     label: "Ask User",
     description: `Ask 1–12 questions in a compact tabbed UI, followed by an explicit review before submission.
-Use questions: [{id, question, header?, type?, options?, default?, required?, description?, when?}].
+Use questions: [{id, question, header?, type?, options?, default?, required?, description?, minSelections?, maxSelections?, when?}].
 Types: single, multi, text, date, datetime, time. Choice options: {id?, label, description?, preview?}; descriptions/previews support Markdown. Use stable unique IDs. Defaults use option IDs (labels if IDs omitted), arrays for multi; defaults never auto-submit. Legacy options + multiSelect calls remain supported.
 Dates are exact YYYY-MM-DD, datetimes YYYY-MM-DD HH:mm, times HH:mm (24-hour); values are local civil times, no timezone conversion. Required defaults true. Set required:false to allow explicit skip. Choice fields allow a custom answer unless allowOther:false.
-Conditional when:{questionId,equals} must reference an earlier question; equals matches a confirmed scalar value or membership in a multi answer. Hidden answers are reset and excluded.
-The user can edit multiline answers/notes, inspect Markdown previews, and explicitly request model explanations. Results contain status, structured answers keyed by id in an array, optional other/note, skipped flags, and hiddenQuestionIds. Cancellation returns no answers; stop the workflow, do not retry or assume defaults.
+Multi fields support minSelections/maxSelections (positive integers within available choices); Other counts as one. Minimum applies on confirmation; defaults must satisfy limits.
+Conditional when:{questionId,equals} must reference an earlier question; equals matches a confirmed scalar value or membership in a multi answer. Use when:{questionId,other:true} for any confirmed custom answer, optionally adding equals for exact custom text. Other conditions require a choice parent allowing custom answers. Hidden answers are reset and excluded.
+The user can edit multiline answers/notes, inspect Markdown previews, and explicitly request model explanations. 1–9 select/toggle original option numbers, / opens filtering, and F1 opens keyboard help without changing the default layout. Results contain status, structured answers keyed by id in an array, optional other/note, skipped flags, and hiddenQuestionIds. Cancellation returns no answers; stop the workflow, do not retry or assume defaults.
 Use this tool instead of asking questions only in plain text. Requires native interactive Pi TUI; not available in RPC or print mode.`,
     promptGuidelines: ["Use ask_user_question for questions and grouped forms. Supply a nonempty context-based default when appropriate; never fabricate factual personal data. Treat cancellation as a stop, not approval."],
     parameters: InputSchema,
