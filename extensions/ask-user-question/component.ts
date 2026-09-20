@@ -58,7 +58,7 @@ export class AskUserQuestionComponent implements Component, Focusable {
         description: s => theme.fg("muted", s), scrollInfo: s => theme.fg("dim", s),
         noMatch: s => theme.fg("warning", s),
       },
-    }, { paddingX: 0 });
+    });
     editor.disableSubmit = true;
     editor.onChange = () => { this.error = ""; this.tui.requestRender(); };
     return editor;
@@ -109,7 +109,9 @@ export class AskUserQuestionComponent implements Component, Focusable {
     this.stopAssistance();
     this.editing = field;
     this.error = "";
-    const value = this.model.states.get(q.id)![field];
+    const state = this.model.states.get(q.id)!;
+    if (field === "other") state.cursorIndex = q.options.length;
+    const value = state[field];
     this.editor.setText(safeDisplay(typeof value === "string" ? value : ""));
     this.editor.focused = this.focused;
   }
@@ -188,8 +190,12 @@ export class AskUserQuestionComponent implements Component, Focusable {
     }
     if (matchesKey(data, Key.escape)) { this.finish(cancelledResult("cancelled")); return; }
     const tabs = [...this.model.visible().map(q => q.id), null];
-    if (matchesKey(data, Key.left) || matchesKey(data, Key.right) || matchesKey(data, Key.tab) || matchesKey(data, Key.shift(Key.tab))) {
-      const delta = matchesKey(data, Key.left) || matchesKey(data, Key.shift(Key.tab)) ? -1 : 1;
+    if (q && isChoice(q) && q.allowOther && this.model.states.get(q.id)!.cursorIndex === q.options.length && matchesKey(data, Key.tab)) {
+      this.openEditor(q, "other");
+      return;
+    }
+    if (matchesKey(data, Key.left) || matchesKey(data, Key.right)) {
+      const delta = matchesKey(data, Key.left) ? -1 : 1;
       this.switchTab(tabs[(tabs.indexOf(this.active) + delta + tabs.length) % tabs.length]);
       return;
     }
@@ -241,7 +247,7 @@ export class AskUserQuestionComponent implements Component, Focusable {
     }
     if (matchesKey(data, Key.enter)) {
       this.stopAssistance();
-      if (onOther && !state.other) { this.openEditor(q, "other"); return; }
+      if (onOther && !state.other) return; // Original Other uses Space/Tab to open; Enter confirms saved text.
       if (!isChoice(q) && (state.value === null || state.skipped)) { this.openEditor(q, "value"); return; }
       if (q.type === "single") this.model.change(q, {
         value: onOther ? null : q.options[state.cursorIndex].id,
@@ -253,94 +259,130 @@ export class AskUserQuestionComponent implements Component, Focusable {
   }
 
   private tabBar(width: number): string {
-    const tabs = [...this.model.visible().map(q => ({ id: q.id, label: `${this.model.states.get(q.id)!.confirmed ? "✓" : "○"} ${q.header}` })), { id: null, label: "Review" }];
-    const style = (tab: typeof tabs[number]) => tab.id === this.active
-      ? this.theme.bg("selectedBg", this.theme.fg("text", ` ${safeDisplay(tab.label).replace(/\s+/g, " ")} `))
-      : this.theme.fg("muted", ` ${safeDisplay(tab.label).replace(/\s+/g, " ")} `);
-    const all = tabs.map(style).join("│");
+    const t = this.theme;
+    const tabs = this.model.visible().map(q => {
+      const header = truncateToWidth(safeDisplay(q.header).replace(/\s+/g, " "), 12);
+      return { id: q.id as string | null, styled: q.id === this.active
+        ? t.bg("selectedBg", t.fg("text", ` ${header} `))
+        : this.model.states.get(q.id)!.confirmed
+          ? t.fg("success", ` ■${header} `) : t.fg("muted", `  ${header} `) };
+    });
+    const label = " ✓ Submit ";
+    tabs.push({ id: null, styled: this.active === null
+      ? t.bg("selectedBg", t.fg("text", label))
+      : t.fg(this.model.result() ? "success" : "dim", label) });
+    const all = " " + tabs.map(tab => tab.styled).join("");
     if (visibleWidth(all) <= width) return all;
+    // Only condense when the original strip would hide the active tab.
     const index = tabs.findIndex(tab => tab.id === this.active);
-    // Active tab is always first in the condensed representation, never clipped behind other tabs.
-    return `${style(tabs[index])} ${index + 1}/${tabs.length}${this.active === null ? "" : " · Review →"}`;
+    if (visibleWidth(" " + tabs.slice(0, index + 1).map(tab => tab.styled).join("")) <= width) return all;
+    return ` ${tabs[index].styled} ${index + 1}/${tabs.length}`;
   }
   private footer(q?: Question): string {
-    if (this.editing) {
-      const format = this.editing === "value" && q ? ({ date: "YYYY-MM-DD", datetime: "YYYY-MM-DD HH:mm", time: "HH:mm (24-hour)" } as Record<string, string>)[q.type] : undefined;
-      return `${format ? `${format} · ` : ""}Enter/Ctrl+S save · Shift+Enter newline · Esc discard · Ctrl+C cancel`;
-    }
-    if (!q) return "Enter/Ctrl+S submit · ←→/Tab edit question · PgUp/PgDn scroll · Esc cancel";
-    const action = q.type === "multi" ? "Space toggle · Enter confirm" : isChoice(q) ? "Enter select/confirm · Space Other" : "Enter confirm/edit";
-    return `${isChoice(q) ? "↑↓ options · " : ""}${action} · e edit · n note${q.required ? "" : " · s skip"} · ? explain · ←→/Tab tabs · PgUp/PgDn scroll · Esc/Ctrl+C cancel`;
+    if (this.editing) return " Enter submit · Esc back";
+    if (!q) return " ←→ switch tabs · Esc cancel";
+    const tabHint = this.model.visible().length === 1 ? "" : " · ←→ switch tabs";
+    const action = isChoice(q)
+      ? this.model.states.get(q.id)!.cursorIndex === q.options.length
+        ? "Space/Tab open editor" : q.type === "multi" ? "Space toggle · Enter confirm" : "Enter select"
+      : "Enter confirm/edit · e edit · n note";
+    return ` ${isChoice(q) ? "↑↓ navigate · " : ""}${action}${tabHint}${q.required ? "" : " · s skip"} · Esc cancel`;
   }
   render(width: number): string[] {
     width = Math.max(0, Math.floor(Number.isFinite(width) ? width : 0));
     const rows = Math.max(0, Math.floor(this.tui.terminal?.rows ?? 24));
     if (!width || !rows || this.closed) return [];
+    const t = this.theme;
     const q = this.question();
     const body: string[] = [];
-    const plain = (text: string) => body.push(...wrapTextWithAnsi(safeDisplay(text), width));
-    const markdown = (text: string) => body.push(...new Markdown(safeDisplay(text), 0, 0, getMarkdownTheme()).render(width));
+    const wrap = (text: string, inset = 0) => body.push(...wrapTextWithAnsi(text, Math.max(1, width - inset)));
+    const markdown = (text: string, indent: number) => {
+      const lines = new Markdown(safeDisplay(text), 0, 0, getMarkdownTheme(), { color: s => t.fg("muted", s) }).render(Math.max(1, width - indent));
+      body.push(...lines.map(line => " ".repeat(indent) + line));
+    };
     let selectedLine = 0;
     if (q) {
       const state = this.model.states.get(q.id)!;
-      plain(`${q.question}${q.required ? " *" : " (optional)"}`);
-      if (q.description) markdown(q.description);
+      wrap(t.fg("text", ` ${safeDisplay(q.question)}`), 2);
+      if (q.description) markdown(q.description, 1);
+      body.push("");
       if (isChoice(q)) {
-        const labels = [...q.options.map(o => o.label), ...(q.allowOther ? ["Other…"] : [])];
-        labels.forEach((label, index) => {
-          if (index === state.cursorIndex) selectedLine = body.length;
-          const checked = index === q.options.length ? Boolean(state.other) : Array.isArray(state.value) ? state.value.includes(q.options[index].id) : state.value === q.options[index].id;
-          plain(`${index === state.cursorIndex ? ">" : " "} [${checked ? "✓" : " "}] ${label}`);
+        const opts = [...q.options, ...(q.allowOther ? [{ id: "", label: "Type your own answer..." }] : [])];
+        const indent = q.type === "multi" ? 7 : 5;
+        opts.forEach((opt, index) => {
+          const selected = index === state.cursorIndex;
+          const other = index === q.options.length;
+          const editingOther = other && this.editing === "other";
+          const checked = other ? Boolean(state.other) && !editingOther
+            : Array.isArray(state.value) ? state.value.includes(opt.id) : state.value === opt.id;
+          if (selected) selectedLine = body.length;
+          const prefix = selected ? t.fg("accent", ">") : " ";
+          const mark = q.type === "multi"
+            ? checked ? t.fg(other ? "success" : "accent", "[✓]") : t.fg("dim", "[ ]")
+            : checked ? t.fg("success", "✓") : " ";
+          const label = t.fg(selected ? "accent" : other ? "muted" : "text", `${index + 1}. ${safeDisplay(opt.label).replace(/\s+/g, " ")}`);
+          body.push(`${prefix} ${mark} ${label}${editingOther ? t.fg("accent", " ✎") : ""}`);
+          if (other && checked) {
+            const preview = truncateToWidth(safeDisplay(state.other).replace(/\s+/g, " "), Math.max(1, width - indent));
+            body.push(" ".repeat(indent) + t.fg("dim", `"${preview}"`));
+          }
+          if (opt.description) markdown(opt.description, indent);
+          if (selected && opt.preview) markdown(opt.preview, indent);
         });
-        const option = q.options[state.cursorIndex];
-        if (option?.description) markdown(option.description);
-        if (option?.preview) { plain("Preview:"); markdown(option.preview); }
-        if (this.explanation) { plain("Explanation:"); markdown(this.explanation); }
+        if (this.explanation) { body.push(""); markdown(this.explanation, 1); }
+      } else if (this.editing !== "value") {
+        wrap(t.fg("muted", " Your answer: ") + t.fg("text", safeDisplay(answerText(q, state))));
       }
-      plain(`${state.confirmed ? "Confirmed" : "Draft"}: ${answerText(q, state)}`);
-      if (state.note) plain(`Note: ${state.note}`);
+      if (state.note && this.editing !== "note") wrap(t.fg("muted", ` Note: ${safeDisplay(state.note)}`));
+      if (this.editing) {
+        body.push("", t.fg("muted", this.editing === "note" ? " Your note:" : " Your answer:"));
+        if (this.editing === "value" && q.type !== "text") {
+          body.push(t.fg("dim", ` ${q.type === "date" ? "YYYY-MM-DD" : q.type === "time" ? "HH:mm (24-hour)" : "YYYY-MM-DD HH:mm (24-hour)"}`));
+        }
+        const editorLines = this.editor.render(Math.max(1, width - 4)).map(line => " " + line.replace(/[\x7f-\x9f]/g, ""));
+        const cursor = editorLines.findIndex(line => line.includes(CURSOR_MARKER));
+        selectedLine = body.length + Math.max(0, cursor);
+        body.push(...editorLines);
+      }
     } else {
-      plain(this.model.result() ? "Ready to submit" : "Review — confirmation needed");
+      const ready = Boolean(this.model.result());
+      body.push(t.fg(ready ? "success" : "warning", t.bold(ready ? " Ready to submit" : " Unanswered questions")), "");
       for (const question of this.model.visible()) {
         const state = this.model.states.get(question.id)!;
-        plain(`${state.confirmed ? "✓" : "○"} ${question.header}: ${question.question}`);
-        plain(answerText(question, state));
-        if (state.note) plain(`Note: ${state.note}`);
-        body.push("");
+        const answer = isChoice(question) && !state.skipped
+          ? [...question.options.filter(o => Array.isArray(state.value) ? state.value.includes(o.id) : state.value === o.id).map(o => o.label), ...(state.other ? [state.other] : [])].join(", ")
+          : answerText(question, state);
+        wrap(t.fg(state.confirmed ? "muted" : "dim", ` ${truncateToWidth(safeDisplay(question.header), 12)}: `)
+          + t.fg(state.confirmed ? "text" : "warning", state.confirmed ? safeDisplay(answer) : "—"));
+        if (state.note) wrap(t.fg("muted", `   Note: ${safeDisplay(state.note)}`));
       }
+      body.push("");
+      wrap(ready ? t.fg("success", " Press Enter to submit") : t.fg("warning", ` Still needed: ${this.model.visible().filter(q => !this.model.states.get(q.id)!.confirmed).map(q => safeDisplay(q.header)).join(", ")}`));
     }
-    const top = `${this.tabBar(width)}${this.editing ? ` · Editing ${this.editing === "value" ? "answer" : this.editing}` : ""}`;
-    const footer = wrapTextWithAnsi(this.theme.fg("dim", this.footer(q)), width)
-      .slice(0, rows >= 6 && width >= 40 ? 3 : 1);
-    const error = this.error ? this.theme.fg("warning", this.error) : "";
-    let lines: string[];
-    if (this.editing) {
-      // Editor filters C0 paste controls itself; strip C1/DEL too without removing its ANSI styling.
-      const editorLines = this.editor.render(width).map(line => line.replace(/[\x7f-\x9f]/g, ""));
-      // Pi's Editor reserves at least five lines. Crop around its cursor on tiny terminals.
-      const budget = Math.max(1, rows - (rows >= 3 ? 1 + footer.length : 0) - (error && rows >= 4 ? 1 : 0));
-      const cursor = editorLines.findIndex(line => line.includes(CURSOR_MARKER));
-      const start = Math.max(0, Math.min(editorLines.length - budget, Math.max(0, cursor - budget + 1)));
-      lines = editorLines.slice(start, start + budget);
-      if (rows >= 3) lines = [top, ...lines, ...(error && rows >= 4 ? [error] : []), ...footer];
-    } else {
-      const budget = Math.max(0, rows - 1 - footer.length - (error && rows >= 4 ? 1 : 0));
-      this.pageSize = Math.max(1, budget - 1);
-      if (this.followSelection && budget) {
-        if (selectedLine < this.scroll) this.scroll = selectedLine;
-        else if (selectedLine >= this.scroll + budget) this.scroll = selectedLine - budget + 1;
-        this.followSelection = false;
-      }
-      this.scroll = Math.max(0, Math.min(this.scroll, body.length - budget));
-      lines = [top, ...body.slice(this.scroll, this.scroll + budget), ...(error && rows >= 4 ? [error] : []), ...footer];
+    // Original chrome and compact height. Only overflow introduces a viewport.
+    const separator = t.fg("accent", "─".repeat(width));
+    let head = [separator, ...(this.model.visible().length > 1 ? [this.tabBar(width), ""] : [])];
+    let tail = ["", ...(this.error ? [t.fg("warning", ` ${this.error}`)] : []), t.fg("dim", this.footer(q)), separator];
+    if (head.length + tail.length >= rows) {
+      head = [];
+      tail = rows >= 4 ? [...(this.error ? [t.fg("warning", ` ${this.error}`)] : []), t.fg("dim", this.footer(q))] : [];
     }
+    const budget = Math.max(1, rows - head.length - tail.length);
+    this.pageSize = Math.max(1, budget - 1);
+    if (this.editing || this.followSelection) {
+      if (selectedLine < this.scroll) this.scroll = selectedLine;
+      else if (selectedLine >= this.scroll + budget) this.scroll = selectedLine - budget + 1;
+      this.followSelection = false;
+    }
+    this.scroll = Math.max(0, Math.min(this.scroll, body.length - budget));
+    const lines = [...head, ...body.slice(this.scroll, this.scroll + budget), ...tail];
     return lines.slice(0, rows).map(line => {
       const cursor = line.indexOf(CURSOR_MARKER);
       if (cursor >= 0) {
         const column = visibleWidth(line.slice(0, cursor));
         if (column >= width) return sliceByColumn(line, column - width + 1, width);
       }
-      return truncateToWidth(line, width, "");
+      return truncateToWidth(line, width);
     });
   }
 }

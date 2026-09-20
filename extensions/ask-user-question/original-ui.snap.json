@@ -1,0 +1,712 @@
+{
+  "baseline": "779d11d60471872ea8fcb40ce0bc882ef940537f",
+  "snapshots": [
+    {
+      "name": "single",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ]
+        }
+      ],
+      "keys": [],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        " Choose a delivery method",
+        "",
+        ">   1. Email",
+        "     Delivered to your inbox.",
+        "    2. Post",
+        "     A printed copy sent to your address.",
+        "    3. Type your own answer...",
+        "",
+        " ↑↓ navigate · Enter select · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m   \u001b[38;2;138;190;183m1. Email\u001b[39m",
+          "index": 3
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ↑↓ navigate · Enter select · Esc cancel\u001b[39m",
+          "index": 9
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 10
+        }
+      ]
+    },
+    {
+      "name": "multi",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ],
+          "multiSelect": true
+        }
+      ],
+      "keys": [],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        " Choose a delivery method",
+        "",
+        "> [ ] 1. Email",
+        "       Delivered to your inbox.",
+        "  [ ] 2. Post",
+        "       A printed copy sent to your address.",
+        "  [ ] 3. Type your own answer...",
+        "",
+        " ↑↓ navigate · Space toggle · Enter confirm · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m \u001b[38;2;102;102;102m[ ]\u001b[39m \u001b[38;2;138;190;183m1. Email\u001b[39m",
+          "index": 3
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ↑↓ navigate · Space toggle · Enter confirm · Esc cancel\u001b[39m",
+          "index": 9
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 10
+        }
+      ]
+    },
+    {
+      "name": "multi-selected",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ],
+          "multiSelect": true
+        }
+      ],
+      "keys": [
+        " ",
+        "\u001b[B"
+      ],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        " Choose a delivery method",
+        "",
+        "  [✓] 1. Email",
+        "       Delivered to your inbox.",
+        "> [ ] 2. Post",
+        "       A printed copy sent to your address.",
+        "  [ ] 3. Type your own answer...",
+        "",
+        " ↑↓ navigate · Space toggle · Enter confirm · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": "  \u001b[38;2;138;190;183m[✓]\u001b[39m \u001b[38;2;212;212;212m1. Email\u001b[39m",
+          "index": 3
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m \u001b[38;2;102;102;102m[ ]\u001b[39m \u001b[38;2;138;190;183m2. Post\u001b[39m",
+          "index": 5
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ↑↓ navigate · Space toggle · Enter confirm · Esc cancel\u001b[39m",
+          "index": 9
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 10
+        }
+      ]
+    },
+    {
+      "name": "tabs",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ]
+        },
+        {
+          "question": "Choose a speed",
+          "header": "Speed",
+          "options": [
+            {
+              "label": "Standard",
+              "description": "No rush."
+            },
+            {
+              "label": "Express",
+              "description": "As soon as possible."
+            }
+          ]
+        }
+      ],
+      "keys": [],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        "  Delivery   Speed  ✓ Submit",
+        "",
+        " Choose a delivery method",
+        "",
+        ">   1. Email",
+        "     Delivered to your inbox.",
+        "    2. Post",
+        "     A printed copy sent to your address.",
+        "    3. Type your own answer...",
+        "",
+        " ↑↓ navigate · Enter select · ←→ switch tabs · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": " \u001b[48;2;58;58;74m\u001b[38;2;212;212;212m Delivery \u001b[39m\u001b[49m\u001b[38;2;128;128;128m  Speed \u001b[39m\u001b[38;2;102;102;102m ✓ Submit \u001b[39m",
+          "index": 1
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m   \u001b[38;2;138;190;183m1. Email\u001b[39m",
+          "index": 5
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ↑↓ navigate · Enter select · ←→ switch tabs · Esc cancel\u001b[39m",
+          "index": 11
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 12
+        }
+      ]
+    },
+    {
+      "name": "confirmed-tab",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ]
+        },
+        {
+          "question": "Choose a speed",
+          "header": "Speed",
+          "options": [
+            {
+              "label": "Standard",
+              "description": "No rush."
+            },
+            {
+              "label": "Express",
+              "description": "As soon as possible."
+            }
+          ]
+        }
+      ],
+      "keys": [
+        "\r",
+        "\u001b[D"
+      ],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        "  Delivery   Speed  ✓ Submit",
+        "",
+        " Choose a delivery method",
+        "",
+        "> ✓ 1. Email",
+        "     Delivered to your inbox.",
+        "    2. Post",
+        "     A printed copy sent to your address.",
+        "    3. Type your own answer...",
+        "",
+        " ↑↓ navigate · Enter select · ←→ switch tabs · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": " \u001b[48;2;58;58;74m\u001b[38;2;212;212;212m Delivery \u001b[39m\u001b[49m\u001b[38;2;128;128;128m  Speed \u001b[39m\u001b[38;2;102;102;102m ✓ Submit \u001b[39m",
+          "index": 1
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m \u001b[38;2;181;189;104m✓\u001b[39m \u001b[38;2;138;190;183m1. Email\u001b[39m",
+          "index": 5
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ↑↓ navigate · Enter select · ←→ switch tabs · Esc cancel\u001b[39m",
+          "index": 11
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 12
+        }
+      ]
+    },
+    {
+      "name": "other-cursor",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ]
+        }
+      ],
+      "keys": [
+        "\u001b[B",
+        "\u001b[B"
+      ],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        " Choose a delivery method",
+        "",
+        "    1. Email",
+        "     Delivered to your inbox.",
+        "    2. Post",
+        "     A printed copy sent to your address.",
+        ">   3. Type your own answer...",
+        "",
+        " ↑↓ navigate · Space/Tab open editor · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m   \u001b[38;2;138;190;183m3. Type your own answer...\u001b[39m",
+          "index": 7
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ↑↓ navigate · Space/Tab open editor · Esc cancel\u001b[39m",
+          "index": 9
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 10
+        }
+      ]
+    },
+    {
+      "name": "inline-editor",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ]
+        }
+      ],
+      "keys": [
+        "\u001b[B",
+        "\u001b[B",
+        "\t",
+        "Custom delivery"
+      ],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        " Choose a delivery method",
+        "",
+        "    1. Email",
+        "     Delivered to your inbox.",
+        "    2. Post",
+        "     A printed copy sent to your address.",
+        ">   3. Type your own answer... ✎",
+        "",
+        " Your answer:",
+        " ────────────────────────────────────────────────────────────────────────────",
+        " Custom delivery",
+        " ────────────────────────────────────────────────────────────────────────────",
+        "",
+        " Enter submit · Esc back",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m   \u001b[38;2;138;190;183m3. Type your own answer...\u001b[39m\u001b[38;2;138;190;183m ✎\u001b[39m",
+          "index": 7
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 15
+        }
+      ]
+    },
+    {
+      "name": "other-preview",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ],
+          "multiSelect": true
+        }
+      ],
+      "keys": [
+        "\u001b[B",
+        "\u001b[B",
+        "\t",
+        "Custom delivery",
+        "\r"
+      ],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        " Choose a delivery method",
+        "",
+        "  [ ] 1. Email",
+        "       Delivered to your inbox.",
+        "  [ ] 2. Post",
+        "       A printed copy sent to your address.",
+        "> [✓] 3. Type your own answer...",
+        "       \"Custom delivery\"",
+        "",
+        " ↑↓ navigate · Space/Tab open editor · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m \u001b[38;2;181;189;104m[✓]\u001b[39m \u001b[38;2;138;190;183m3. Type your own answer...\u001b[39m",
+          "index": 7
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ↑↓ navigate · Space/Tab open editor · Esc cancel\u001b[39m",
+          "index": 10
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 11
+        }
+      ]
+    },
+    {
+      "name": "incomplete-review",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ]
+        },
+        {
+          "question": "Choose a speed",
+          "header": "Speed",
+          "options": [
+            {
+              "label": "Standard",
+              "description": "No rush."
+            },
+            {
+              "label": "Express",
+              "description": "As soon as possible."
+            }
+          ]
+        }
+      ],
+      "keys": [
+        "\u001b[C",
+        "\u001b[C"
+      ],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        "   Delivery   Speed  ✓ Submit",
+        "",
+        " Unanswered questions",
+        "",
+        " Delivery: —",
+        " Speed: —",
+        "",
+        " Still needed: Delivery, Speed",
+        "",
+        " ←→ switch tabs · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": " \u001b[38;2;128;128;128m  Delivery \u001b[39m\u001b[38;2;128;128;128m  Speed \u001b[39m\u001b[48;2;58;58;74m\u001b[38;2;212;212;212m ✓ Submit \u001b[39m\u001b[49m",
+          "index": 1
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ←→ switch tabs · Esc cancel\u001b[39m",
+          "index": 10
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 11
+        }
+      ]
+    },
+    {
+      "name": "ready-review",
+      "questions": [
+        {
+          "question": "Choose a delivery method",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "Delivered to your inbox."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ],
+          "multiSelect": true
+        },
+        {
+          "question": "Choose a speed",
+          "header": "Speed",
+          "options": [
+            {
+              "label": "Standard",
+              "description": "No rush."
+            },
+            {
+              "label": "Express",
+              "description": "As soon as possible."
+            }
+          ]
+        }
+      ],
+      "keys": [
+        " ",
+        "\u001b[B",
+        " ",
+        "\u001b[B",
+        "\t",
+        "Custom delivery",
+        "\r",
+        "\r",
+        "\r"
+      ],
+      "width": 80,
+      "lines": [
+        "────────────────────────────────────────────────────────────────────────────────",
+        "  ■Delivery  ■Speed  ✓ Submit",
+        "",
+        " Ready to submit",
+        "",
+        " Delivery: Email, Post, Custom delivery",
+        " Speed: Standard",
+        "",
+        " Press Enter to submit",
+        "",
+        " ←→ switch tabs · Esc cancel",
+        "────────────────────────────────────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": " \u001b[38;2;181;189;104m ■Delivery \u001b[39m\u001b[38;2;181;189;104m ■Speed \u001b[39m\u001b[48;2;58;58;74m\u001b[38;2;212;212;212m ✓ Submit \u001b[39m\u001b[49m",
+          "index": 1
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ←→ switch tabs · Esc cancel\u001b[39m",
+          "index": 10
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m────────────────────────────────────────────────────────────────────────────────\u001b[39m",
+          "index": 11
+        }
+      ]
+    },
+    {
+      "name": "wrapped",
+      "questions": [
+        {
+          "question": "Choose a delivery method that works best for your needs",
+          "header": "Delivery",
+          "options": [
+            {
+              "label": "Email",
+              "description": "A longer description which must wrap using the original five-column indentation."
+            },
+            {
+              "label": "Post",
+              "description": "A printed copy sent to your address."
+            }
+          ]
+        },
+        {
+          "question": "Choose a speed",
+          "header": "Speed",
+          "options": [
+            {
+              "label": "Standard",
+              "description": "No rush."
+            },
+            {
+              "label": "Express",
+              "description": "As soon as possible."
+            }
+          ]
+        }
+      ],
+      "keys": [],
+      "width": 50,
+      "lines": [
+        "──────────────────────────────────────────────────",
+        "  Delivery   Speed  ✓ Submit",
+        "",
+        " Choose a delivery method that works best for",
+        "your needs",
+        "",
+        ">   1. Email",
+        "     A longer description which must wrap using",
+        "     the original five-column indentation.",
+        "    2. Post",
+        "     A printed copy sent to your address.",
+        "    3. Type your own answer...",
+        "",
+        " ↑↓ navigate · Enter select · ←→ switch tabs · ...",
+        "──────────────────────────────────────────────────"
+      ],
+      "styledRows": [
+        {
+          "line": "\u001b[38;2;138;190;183m──────────────────────────────────────────────────\u001b[39m",
+          "index": 0
+        },
+        {
+          "line": " \u001b[48;2;58;58;74m\u001b[38;2;212;212;212m Delivery \u001b[39m\u001b[49m\u001b[38;2;128;128;128m  Speed \u001b[39m\u001b[38;2;102;102;102m ✓ Submit \u001b[39m",
+          "index": 1
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m>\u001b[39m   \u001b[38;2;138;190;183m1. Email\u001b[39m",
+          "index": 6
+        },
+        {
+          "line": "\u001b[38;2;102;102;102m ↑↓ navigate · Enter select · ←→ switch tabs · \u001b[0m...\u001b[0m",
+          "index": 13
+        },
+        {
+          "line": "\u001b[38;2;138;190;183m──────────────────────────────────────────────────\u001b[39m",
+          "index": 14
+        }
+      ]
+    }
+  ]
+}

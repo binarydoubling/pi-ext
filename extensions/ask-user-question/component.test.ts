@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { test } from "node:test";
 import { initTheme } from "@earendil-works/pi-coding-agent";
@@ -7,7 +9,10 @@ import { AskUserQuestionComponent, type TUILike } from "./component.ts";
 import { normalizeInput, type Question, type Option, type Result } from "./schema.ts";
 
 initTheme("dark", false);
-const { theme } = await import(new URL("./modes/interactive/theme/theme.js", import.meta.resolve("@earendil-works/pi-coding-agent")).href);
+const themeUrl = new URL("./modes/interactive/theme/theme.js", import.meta.resolve("@earendil-works/pi-coding-agent"));
+const { loadThemeFromPath } = await import(themeUrl.href);
+// Golden ANSI must not depend on the calling terminal's color capabilities.
+const theme = loadThemeFromPath(fileURLToPath(new URL("dark.json", themeUrl)), "truecolor");
 const k = { enter: "\r", esc: "\x1b", left: "\x1b[D", right: "\x1b[C", up: "\x1b[A", down: "\x1b[B", save: "\x13", cancel: "\x03", pageDown: "\x1b[6~", pageUp: "\x1b[5~", newline: "\x1b[13;2u" };
 const choice = { id: "pick", header: "Pick", question: "Choose", options: [{ id: "a", label: "Alpha" }, { id: "b", label: "Beta" }] };
 type Explain = (q: Question, o: Option, signal: AbortSignal) => Promise<string>;
@@ -28,17 +33,17 @@ function setup(questions: unknown[] = [choice], explain?: Explain) {
 }
 const flush = () => new Promise<void>(resolve => setImmediate(resolve));
 
-test("single question has Review; defaults and tab navigation never confirm", () => {
+test("single question stays compact but requires review; navigation never confirms", () => {
   const h = setup([{ ...choice, default: "b" }]);
-  assert.match(h.view(), /Review/);
-  assert.match(h.view(), /Draft: Beta/);
+  assert.doesNotMatch(h.view(), /Submit|Draft:/);
+  assert.match(h.view(), /> ✓ 2\. Beta/);
   h.press(k.right, k.enter);
   assert.equal(h.results.length, 0);
   assert.match(h.view(), /Confirm or explicitly skip/);
   h.press(k.left, k.enter);
   assert.equal(h.results.length, 0, "confirm advances to review without submitting");
   assert.match(h.view(), /Ready to submit/);
-  assert.match(h.view(), /Enter\/Ctrl\+S submit/);
+  assert.match(h.view(), /Press Enter to submit/);
   h.press(k.save);
   assert.equal(h.results[0].answers[0].value, "b");
   h.ui.abort(); h.ui.handleInput(k.enter);
@@ -49,8 +54,10 @@ test("multi requires a selection and explicit confirmation; Other is additive", 
   const h = setup([{ ...choice, type: "multi" }]);
   h.press(k.enter);
   assert.match(h.view(), /Select a choice/);
-  h.press(" ", k.down, " ", k.down, k.enter); h.paste("custom"); h.press(k.save);
-  assert.match(h.view(), /Draft: Alpha; Beta; Other: custom/);
+  h.press(" ", k.down, " ", k.down, "\t"); h.paste("custom"); h.press(k.save);
+  assert.match(h.view(), /\[✓\] 1\. Alpha/);
+  assert.match(h.view(), /\[✓\] 2\. Beta/);
+  assert.match(h.view(), /       "custom"/);
   h.press(k.right, k.enter);
   assert.equal(h.results.length, 0);
   h.press(k.left, k.enter, k.enter);
@@ -81,8 +88,9 @@ test("expanded large pastes and multiline notes save in full", () => {
   const text = Array.from({ length: 16 }, (_, i) => `long line ${i}`).join("\n");
   h.press(k.enter); h.paste(text); assert.match(h.view(), /paste #/);
   h.press(k.save, k.left, "n"); h.paste("first"); h.press(k.newline); h.paste("second"); h.press(k.enter);
-  assert.match(h.view(), /Confirmed:/, "notes do not invalidate a confirmed answer");
-  h.press(k.right, k.enter);
+  h.press(k.right);
+  assert.match(h.view(), /Ready to submit/, "notes do not invalidate a confirmed answer");
+  h.press(k.enter);
   assert.equal(h.results[0].answers[0].value, text);
   assert.equal(h.results[0].answers[0].note, "first\nsecond");
 });
@@ -199,7 +207,7 @@ test("review scrolls full values and notes; option movement follows selection", 
   assert.match(h.view(), /Ready to submit/); h.ui.dispose();
   const c = setup([{ ...choice, description: "description\n\n".repeat(20) }]);
   c.tui.terminal!.rows = 8; c.view(); c.press(k.down);
-  assert.match(c.view(), /> \[ \] Beta/); c.ui.dispose();
+  assert.match(c.view(), />   2\. Beta/); c.ui.dispose();
 });
 
 test("narrow widths, low heights, active tabs and focused editor cursor remain bounded", () => {
@@ -241,7 +249,7 @@ test("clearing a custom-only multi answer leaves an unconfirmed editable draft",
   const h = setup([{ ...choice, type: "multi" }]);
   h.press("e"); h.paste("custom"); h.press(k.save, k.enter, k.left, "e");
   h.press(...Array(6).fill("\x7f"), k.save);
-  assert.match(h.view(), /Draft: \(unanswered\)/);
+  assert.doesNotMatch(h.view(), /\[✓\]|"custom"/);
   h.press(k.right, k.enter); assert.equal(h.results.length, 0);
   h.press(k.left, k.up, k.up, " ", k.enter, k.enter);
   assert.deepEqual(h.results[0].answers[0], { id: "pick", value: ["a"], skipped: false });
@@ -254,4 +262,51 @@ test("old explanation rejection cannot replace a newer successful request", asyn
   assert.match(h.view(), /Fresh explanation/);
   reject(new Error("late secret")); await flush();
   assert.match(h.view(), /Fresh explanation/); assert.doesNotMatch(h.view(), /late secret|unavailable/); h.ui.dispose();
+});
+
+// Captured from 779d11d6's renderer, NOT the implementation under test. Only the
+// old SDK import namespace was changed. Text, chrome, colors and keys are fixed.
+const original = JSON.parse(readFileSync(new URL("./original-ui.snap.json", import.meta.url), "utf8"));
+for (const snapshot of original.snapshots) test(`original UI parity: ${snapshot.name}`, () => {
+  const h = setup(snapshot.questions);
+  h.tui.terminal!.rows = 40;
+  h.press(...snapshot.keys);
+  const lines = h.ui.render(snapshot.width);
+  assert.deepEqual(lines.map(line => stripVTControlCharacters(line.replaceAll(CURSOR_MARKER, "")).trimEnd()), snapshot.lines);
+  for (const { index, line } of snapshot.styledRows) assert.equal(lines[index], line, `original styling at row ${index}`);
+  h.ui.dispose();
+});
+
+test("original Other controls: Tab/Space edit inline; saved Other confirms with Enter", () => {
+  for (const key of ["\t", " "]) {
+    const h = setup([{ ...choice, type: "multi" }]);
+    h.press(k.down, k.down, k.enter);
+    assert.doesNotMatch(h.view(), /Your answer:/, "Enter without saved Other does not open the editor");
+    h.press(key); h.paste("custom");
+    assert.match(h.view(), /Choose[\s\S]*Type your own answer\.\.\. ✎[\s\S]*Your answer:/);
+    h.press(k.enter);
+    assert.match(h.view(), /"custom"/);
+    h.press(k.enter);
+    assert.match(h.view(), /Ready to submit/);
+    assert.equal(h.results.length, 0);
+    h.press(k.enter);
+    assert.equal(h.results[0].answers[0].other, "custom");
+  }
+  const h = setup([choice, { question: "Second", type: "text" }]);
+  h.press("\t"); assert.match(h.view(), /Choose/); // Tab is not question navigation.
+  h.ui.dispose();
+});
+
+test("short terminals keep validation visible and option labels stay on one row", () => {
+  const h = setup([{ question: "When?", type: "date" }]);
+  h.tui.terminal!.rows = 4;
+  h.press("e"); h.paste("2025-02-29"); h.press(k.enter);
+  assert.match(h.view(), /Enter a real date/);
+  assert.ok(h.ui.render(80).some(line => line.includes(CURSOR_MARKER)));
+  assert.ok(h.ui.render(80).length <= 4);
+  h.ui.dispose();
+  const c = setup([{ ...choice, options: [{ label: "Two\nlines\t界" }] }]);
+  assert.match(c.view(), /1\. Two lines 界/);
+  assert.ok(c.ui.render(80).every(line => !/[\n\r\t]/.test(line)));
+  c.ui.dispose();
 });
