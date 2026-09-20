@@ -4,7 +4,11 @@ import { registerHooks } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const core = process.env.PI_TEST_CORE_DIR ?? join(execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim(), "@earendil-works/pi-coding-agent");
+// npm --prefix sets this for scripts; it is not the global installation prefix.
+const env = { ...process.env };
+delete env.npm_config_prefix;
+delete env.NPM_CONFIG_PREFIX;
+const core = process.env.PI_TEST_CORE_DIR ?? join(execFileSync("npm", ["root", "-g"], { encoding: "utf8", env }).trim(), "@earendil-works/pi-coding-agent");
 const parentURL = pathToFileURL(join(core, "package.json")).href;
 registerHooks({
   resolve(specifier, context, nextResolve) {
