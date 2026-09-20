@@ -1,6 +1,6 @@
 # Ask User Question
 
-The original compact tabbed `ask_user_question`, with multiline answers, notes, Markdown previews, conditional fields, strict date validation, and an explicit final Review tab. Requires **Pi 0.86+ and native interactive TUI**. RPC/print mode returns `status: "unavailable"`; it never silently accepts defaults or disables the tool.
+The original compact tabbed `ask_user_question`, with multiline answers, notes, Markdown previews, conditional fields, strict date validation, and an explicit final Review tab. Requires **Pi 0.84.2+ and native interactive TUI**. RPC/print mode returns `status: "unavailable"`; it never silently accepts defaults or disables the tool.
 
 ## Input
 

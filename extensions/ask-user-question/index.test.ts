@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { initTheme } from "@earendil-works/pi-coding-agent";
+import { initTheme, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import register, { explainOption } from "./index.ts";
 import { normalizeInput } from "./schema.ts";
 
@@ -17,7 +17,7 @@ function tool() {
 }
 function context(interact?: (ui: any) => void, complete: () => Promise<any> = async () => response) {
   let calls = 0;
-  const ctx: any = { mode: "tui", model: { id: "test-model" }, modelRegistry: { streamSimple: () => { calls++; return { result: complete }; } }, ui: {
+  const ctx: any = { mode: "tui", model: { id: "test-model" }, modelRegistry: { complete: () => { calls++; return complete(); } }, ui: {
     custom: (factory: any) => new Promise(resolve => {
       const ui = factory({ requestRender() {}, terminal: { rows: 24, columns: 80 } }, theme, {}, resolve);
       queueMicrotask(() => interact?.(ui));
@@ -28,6 +28,7 @@ function context(interact?: (ui: any) => void, complete: () => Promise<any> = as
 const flush = () => new Promise<void>(resolve => setImmediate(resolve));
 
 test("registers sequential original tool, no UI never deregisters or accepts defaults", async () => {
+  assert.equal(typeof ModelRegistry.prototype.complete, "function", "installed SDK supports the model request API");
   const t = tool(); assert.equal(t.name, "ask_user_question"); assert.equal(t.executionMode, "sequential");
   for (const mode of ["rpc", "print"]) {
     const { ctx, calls } = context(); ctx.mode = mode; ctx.hasUI = true;
@@ -69,15 +70,15 @@ test("explanation has isolated bounded context, hides thinking and reports usage
   const [q] = normalizeInput(params);
   let reported: unknown;
   const { ctx } = context();
-  ctx.modelRegistry.streamSimple = (model: unknown, input: any, options: any) => {
+  ctx.modelRegistry.complete = async (model: unknown, input: any, options: any) => {
     assert.equal(model, ctx.model);
     assert.equal(input.messages.length, 1); assert.equal(input.tools, undefined);
     const data = JSON.parse(input.messages[0].content[0].text);
     assert.deepEqual(Object.keys(data).sort(), ["option", "question"]);
     assert.equal(data.default, undefined); assert.equal(data.answers, undefined); assert.equal(data.notes, undefined);
-    assert.equal(options.maxTokens, 768); assert.equal(options.maxRetries, 0); assert.equal(options.toolChoice, "none");
+    assert.equal(options.maxTokens, 768); assert.equal(options.maxRetries, 0);
     assert.equal(options.signal instanceof AbortSignal, true); assert.equal(options.timeoutMs, 30000);
-    return { result: async () => response };
+    return response;
   };
   assert.equal(await explainOption(ctx, q, q.options[0], new AbortController().signal, u => { reported = u; }), "Useful explanation");
   assert.deepEqual(reported, usage);
@@ -98,9 +99,9 @@ test("submitted result accounts opt-in explanation usage but not reasoning or ex
 test("cancel aborts nested requests and collects reported aborted usage", async () => {
   let signal!: AbortSignal;
   const { ctx } = context(async ui => { ui.handleInput("?"); await flush(); ui.handleInput("\x1b"); });
-  ctx.modelRegistry.streamSimple = (_model: any, _input: any, options: any) => {
+  ctx.modelRegistry.complete = (_model: any, _input: any, options: any) => {
     signal = options.signal;
-    return { result: () => new Promise(resolve => signal.addEventListener("abort", () => resolve({ ...response, stopReason: "aborted" }), { once: true })) };
+    return new Promise(resolve => signal.addEventListener("abort", () => resolve({ ...response, stopReason: "aborted" }), { once: true }));
   };
   const result = await tool().execute("id", params, undefined, undefined, ctx);
   assert.equal(signal.aborted, true); assert.equal(result.details.status, "cancelled"); assert.deepEqual(result.details.answers, []);
